@@ -106,9 +106,9 @@ int xsys_spec (void)
 
 //  printf("SYSTEM = %d:%ld", numCPU, mem.total);
 
-  if      (spec > 30 && numCPU > 8)  { /* printf(" XDOS_ENTERPRISE\n");   */ return XDOS_ENTERPRISE; }
-  else if (spec > 16 && numCPU > 4)  { /* printf(" XDOS_PROFESSIONAL\n"); */ return XDOS_PROFESSIONAL; }
-  else                               { /* printf(" XDOS_STANDARD\n");     */ return XDOS_STANDARD; }
+  if      (spec > 30 && numCPU > 8)  { return XSYS_ENTERPRISE; }
+  else if (spec > 16 && numCPU > 4)  { return XSYS_PROFESSIONAL; }
+  else                               { return XSYS_STANDARD; }
 }
 
 void xsys_get_mem_use (float *used)

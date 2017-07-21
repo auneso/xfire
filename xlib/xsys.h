@@ -1,9 +1,9 @@
 #ifndef _XSYS_H
 #define _XSYS_H
 
-#define XDOS_ENTERPRISE   1
-#define XDOS_PROFESSIONAL 2
-#define XDOS_STANDARD     3
+#define XSYS_ENTERPRISE   1
+#define XSYS_PROFESSIONAL 2
+#define XSYS_STANDARD     3
 
 void xsys_init (void);
 
