@@ -1,0 +1,147 @@
+/*
+** 2016/02/15 HDS 
+*/
+
+#include <pthread.h>
+
+#include "xatomic.h"
+#include "mutex.h"
+#include "xalloc.h"
+#include "xmm.h"
+
+// #define XMM_SPIN_LOCK
+
+#define XMM_ALLOC_CACHE   1
+#define XMM_ALLOC_XMALLOC 2
+
+struct xmm_mem {
+  ub16 index;
+  ub8  dynamic;
+  char mem[1];
+};
+
+struct xmm_cache {
+#ifdef XMM_SPIN_LOCK
+  spin_mutex slock;
+#else
+  XATOMIC_DECLARE(int, top);
+//  pthread_mutex_t mlock;
+  
+#endif
+  int  mcnt;
+  void **cache;
+};
+
+struct xmulti_mem {
+  int mem_size; 
+  int mem_num; 
+  ub16 cache_size;
+  struct xmm_cache **cache;
+};
+
+
+XMM *xmm_create (int mem_size, int mem_num, ub16 cache_size)
+{
+  XMM *xmm;
+  int i, j;
+
+  xmm = xzalloc(sizeof(XMM));
+
+  if (cache_size < 1) cache_size = 1;
+  xmm->cache_size = cache_size;
+  xmm->mem_num = mem_num;
+  xmm->mem_size  = mem_size + sizeof(struct xmm_mem);
+
+  xmm->cache = (struct xmm_cache **)xmalloc(sizeof(struct xmm_cache *) * cache_size); 
+
+  for (i = 0; i < cache_size; i++) {
+    xmm->cache[i] = (struct xmm_cache *)xmalloc(sizeof(struct xmm_cache));
+    XATOMIC_INIT(xmm->cache[i]->top = 0;
+#ifdef XMM_SPIN_LOCK
+    spin_mutex_init(&xmm->cache[i]->slock);
+#else
+    pthread_mutex_init(&xmm->cache[i]->mlock, NULL);
+#endif
+    xmm->cache[i]->cache = xmalloc(sizeof(void *) * mem_num);
+
+    for (j = 0; j < mem_num; j++) {
+      xmm->cache[i]->cache[j] = xzalloc(xmm->mem_size);
+    }
+  }
+  return xmm;
+}
+
+void xmm_destroy (XMM *xmm)
+{
+  xmm = xmm;
+}
+
+void *xmm_alloc (XMM *xmm, int size, ub16 cache_idx)
+{
+  struct xmm_mem *xm;
+  struct xmm_cache *xc;
+
+  cache_idx %= xmm->cache_size;
+  xc = xmm->cache[cache_idx];
+
+#ifdef XMM_SPIN_LOCK
+  spin_mutex_lock(&xc->slock);
+#else
+  pthread_mutex_lock(&xc->mlock);
+#endif
+
+  if (xc->top == xmm->mem_num || size > xmm->mem_size - sizeof(struct xmm_mem)) {
+#ifdef XMM_SPIN_LOCK
+    spin_mutex_unlock(&xc->slock);
+#else
+    pthread_mutex_unlock(&xc->mlock);
+#endif
+    xm = xmalloc(size + sizeof(struct xmm_mem)); 
+    xm->dynamic = XMM_ALLOC_XMALLOC;
+  } else {
+    xm = xc->cache[xc->top++];
+#ifdef XMM_SPIN_LOCK
+    spin_mutex_unlock(&xc->slock);
+#else
+    pthread_mutex_unlock(&xc->mlock);
+#endif
+
+    xm->dynamic = XMM_ALLOC_CACHE;
+  }
+
+  xm->index = cache_idx;
+
+  return (void *)((char *)xm + sizeof(struct xmm_mem));
+}
+
+
+void xmm_free (XMM *xmm, void *ptr)
+{
+  struct xmm_mem *xm = (struct xmm_mem *)((char *)ptr - sizeof(struct xmm_mem));
+  struct xmm_cache *xc = xmm->cache[xm->index];
+
+#ifdef XMM_SPIN_LOCK
+  spin_mutex_lock(&xc->slock);
+#else
+  pthread_mutex_lock(&xc->mlock);
+#endif
+  if (xm->dynamic == XMM_ALLOC_CACHE) {
+    xc->cache[--xc->top] = xm;
+#ifdef XMM_SPIN_LOCK
+    spin_mutex_unlock(&xc->slock);
+#else
+    pthread_mutex_unlock(&xc->mlock);
+#endif
+  } else 
+  if (xm->dynamic == XMM_ALLOC_XMALLOC) {
+#ifdef XMM_SPIN_LOCK
+    spin_mutex_unlock(&xc->slock);
+#else
+    pthread_mutex_unlock(&xc->mlock);
+#endif
+    xfree(xm);
+  } else {
+    printf("xsq_free Error = %p\n", ptr);
+  }
+}
+

@@ -1,0 +1,37 @@
+char *patab[] = {
+  "$$tofaz&$$stg&hds&1234",
+  "$$tiger&$$dragon&hds&abcd",
+  "$$tiger&$$stg&han&tango"
+};
+
+  char buff[1024];
+  int pidx = 1;
+  
+  if (argc < 2) {
+    printf("Usage : %s file-name\n", argv[0]);
+    return 1;
+  }
+
+  fp = fopen(argv[1], "r");
+  if (fp == NULL) { printf("open error [%s]\n", argv[1]); exit(1); }
+  len = fread(buff, 1, sizeof(buff), fp);
+  fclose(fp);
+
+  cron_start();
+
+  xf = xfilter_create();
+  for (i = 0; i < 3; i++) {
+    xfilter_insert(xf, pidx, i+1,  iptab[i], patab[i], crontab[i]);
+  }
+  xfilter_compile(xf);
+
+  while (1) {
+    i = xfilter_search(xf, pidx, 5, buff,  len); 
+    printf("search = %d\n", i);
+    sleep(1);
+  }
+
+  xfilter_destroy(xf);
+  return 0;
+}
+

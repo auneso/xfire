@@ -1,0 +1,1 @@
+cmd_/home/xfire/dpdk-17.02/x86_64-native-linuxapp-gcc/build/lib/librte_eal/linuxapp/kni/rte_kni.ko := cp /home/xfire/dpdk-17.02/x86_64-native-linuxapp-gcc/build/lib/librte_eal/linuxapp/kni/rte_kni.ko.unsigned /home/xfire/dpdk-17.02/x86_64-native-linuxapp-gcc/build/lib/librte_eal/linuxapp/kni/rte_kni.ko
